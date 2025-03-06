@@ -1,17 +1,18 @@
 const TelegramBot = require('node-telegram-bot-api');
 const express = require('express');
-const { OpenAI } = require('openai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
-const token = process.env.TELEGRAM_TOKEN;
-const openaiApiKey = process.env.OPENAI_API_KEY; 
+const token = process.env.TELEGRAM_TOKEN; 
+const geminiApiKey = process.env.GEMINI_API_KEY;
 const botName = 'DenisAIBot';
 
 
 const bot = new TelegramBot(token);
-const openai = new OpenAI({ apiKey: openaiApiKey });
+const genAI = new GoogleGenerativeAI(geminiApiKey);
+const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }); 
 
-
+// Middleware for webhook
 app.use(express.json());
 
 
@@ -20,30 +21,17 @@ bot.on('message', async (msg) => {
   const text = msg.text;
 
   if (!text || text === '/start') {
-    bot.sendMessage(chatId, `Hello! I’m ${botName}, your AI assistant powered by advanced language technology. How can I assist you today?`);
+    bot.sendMessage(chatId, `Hello! I’m ${botName}, your AI assistant powered by Gemini. How can I help you today?`);
     return;
   }
 
-  const prompt = `
-    You are ${botName}, an intelligent and friendly AI agent created by Denis. 
-    You’re designed to assist users with natural, human-like conversations, answering questions, providing insights, and helping with tasks. 
-    Respond to this message in a conversational tone: "${text}"
-  `;
-
   try {
- 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo', 
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 200, 
-      temperature: 0.7, 
-    });
-
-    const reply = response.choices[0].message.content.trim();
+    const result = await model.generateContent(`You are ${botName}, a friendly AI created by Denis. Respond to: "${text}"`);
+    const reply = result.response.text().trim();
     bot.sendMessage(chatId, reply);
   } catch (error) {
-    console.error('OpenAI error:', error);
-    bot.sendMessage(chatId, 'Oops! Something went wrong on my end. Could you try again?');
+    console.error('Gemini API error:', error.message);
+    bot.sendMessage(chatId, 'Oops! Something went wrong. Try again!');
   }
 });
 
